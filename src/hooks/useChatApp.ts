@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import { apiClient } from '../lib/api/client';
+import { ApiError, apiClient } from '../lib/api/client';
 import { appConfig } from '../lib/config';
 import { loadChatState, saveChatState } from '../lib/storage/chatStore';
 import type { ChatMessage, ChatSession, ModelOption } from '../types/chat';
@@ -20,6 +20,8 @@ function createLocalSession(seed?: string): ChatSession {
   return {
     id: crypto.randomUUID(),
     title: seed?.trim().slice(0, 32) || 'New customer chat',
+    backendSessionId: null,
+    clientId: null,
     lastMessagePreview: null,
     lastMessageAt: now,
     createdAt: now
@@ -106,6 +108,44 @@ export function useChatApp() {
 
     return messagesBySession[activeSessionId] ?? [];
   }, [activeSessionId, messagesBySession]);
+
+  function getSessionByLocalId(localSessionId: string) {
+    return sessions.find((session) => session.id === localSessionId) ?? null;
+  }
+
+  function applyConversationContext(localSessionId: string, nextContext: { sessionId: string | null; clientId: number | null }) {
+    setSessions((current) =>
+      current.map((session) =>
+        session.id === localSessionId
+          ? {
+              ...session,
+              backendSessionId: nextContext.sessionId ?? session.backendSessionId,
+              clientId: nextContext.clientId ?? session.clientId
+            }
+          : session
+      )
+    );
+  }
+
+  function formatApiError(error: unknown) {
+    if (error instanceof ApiError) {
+      if (error.kind === 'validation') {
+        return `Validation error: ${error.message}`;
+      }
+
+      if (error.kind === 'network') {
+        return error.message;
+      }
+
+      if (error.status === 404) {
+        return 'The selected model or endpoint was not found on the backend.';
+      }
+
+      return error.message;
+    }
+
+    return error instanceof Error ? error.message : 'Unexpected error while communicating with the backend.';
+  }
 
   function updateSessionPreview(sessionId: string, latestMessage: ChatMessage) {
     setSessions((current) =>
@@ -210,6 +250,7 @@ export function useChatApp() {
     }
 
     const sessionId = ensureSessionId(trimmed);
+    const activeConversation = getSessionByLocalId(sessionId);
     setComposerError(null);
     setPending(sessionId, true);
 
@@ -231,7 +272,14 @@ export function useChatApp() {
     try {
       const response = await apiClient.sendText({
         message: trimmed,
-        model: selectedModel
+        model: selectedModel || null,
+        sessionId: activeConversation?.backendSessionId ?? null,
+        clientId: activeConversation?.clientId ?? null
+      });
+
+      applyConversationContext(sessionId, {
+        sessionId: response.sessionId,
+        clientId: response.clientId
       });
 
       setMessagesBySession((current) => ({
@@ -258,7 +306,7 @@ export function useChatApp() {
           [sessionId]: nextMessages
         };
       });
-      setComposerError(error instanceof Error ? error.message : 'Failed to send message.');
+      setComposerError(formatApiError(error));
     } finally {
       setPending(sessionId, false);
     }
@@ -266,6 +314,7 @@ export function useChatApp() {
 
   async function sendAudioMessage(file: Blob) {
     const sessionId = ensureSessionId();
+    const activeConversation = getSessionByLocalId(sessionId);
     setComposerError(null);
     setPending(sessionId, true);
     appendPendingAssistant(sessionId);
@@ -274,7 +323,14 @@ export function useChatApp() {
       const response = await apiClient.sendAudio({
         file,
         fileName: `recording-${Date.now()}.webm`,
-        model: selectedModel
+        model: selectedModel || null,
+        sessionId: activeConversation?.backendSessionId ?? null,
+        clientId: activeConversation?.clientId ?? null
+      });
+
+      applyConversationContext(sessionId, {
+        sessionId: response.sessionId,
+        clientId: response.clientId
       });
 
       setMessagesBySession((current) => ({
@@ -288,7 +344,7 @@ export function useChatApp() {
       updateSessionPreview(sessionId, response.assistantMessage);
     } catch (error) {
       removePendingAssistant(sessionId);
-      setComposerError(error instanceof Error ? error.message : 'Failed to send audio message.');
+      setComposerError(formatApiError(error));
     } finally {
       setPending(sessionId, false);
     }

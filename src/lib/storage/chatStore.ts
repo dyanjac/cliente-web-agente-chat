@@ -41,7 +41,11 @@ export function loadChatState(): PersistedChatState {
       version: 1,
       activeSessionId: typeof parsed.activeSessionId === 'string' ? parsed.activeSessionId : null,
       messagesBySession: parsed.messagesBySession ?? {},
-      sessions: parsed.sessions ?? []
+      sessions: (parsed.sessions ?? []).map((session) => ({
+        ...session,
+        backendSessionId: typeof session.backendSessionId === 'string' ? session.backendSessionId : null,
+        clientId: typeof session.clientId === 'number' ? session.clientId : null
+      }))
     };
   } catch {
     return {
