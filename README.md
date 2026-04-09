@@ -50,11 +50,16 @@ npm run build
 ## Environment
 
 `VITE_API_BASE_URL` points to the FastAPI backend root.
+`VITE_AUTO_PLAY_ASSISTANT_AUDIO` controls whether new assistant audio replies should attempt to play automatically.
 
 Examples:
 
 - `http://localhost:7860`
 - `https://api.techshop.example.com`
+
+Boolean example:
+
+- `VITE_AUTO_PLAY_ASSISTANT_AUDIO=true`
 
 ## API Notes
 

@@ -28,7 +28,11 @@ export function ChatPage() {
 
           {chat.sessionsError ? <div className="banner banner--error">{chat.sessionsError}</div> : null}
 
-          <MessageList isPending={chat.isSessionPending} messages={chat.activeMessages} />
+          <MessageList
+            activeSessionId={chat.activeSessionId}
+            isPending={chat.isSessionPending}
+            messages={chat.activeMessages}
+          />
 
           <Composer
             disabled={chat.isSessionPending}
