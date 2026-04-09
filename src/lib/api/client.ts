@@ -1,4 +1,5 @@
 import { appConfig } from '../config';
+import { generateId } from '../id';
 import type {
   ApiErrorKind,
   ApiErrorPayload,
@@ -29,7 +30,7 @@ export class ApiError extends Error {
 
 function normalizeMessage(input: JsonRecord, fallback: Partial<ChatMessage>): ChatMessage {
   return {
-    id: String(input.id ?? fallback.id ?? crypto.randomUUID()),
+    id: String(input.id ?? fallback.id ?? generateId()),
     role: (input.role as ChatMessage['role']) ?? fallback.role ?? 'assistant',
     content: String(input.content ?? input.response ?? input.message ?? fallback.content ?? ''),
     createdAt: String(input.created_at ?? input.createdAt ?? fallback.createdAt ?? new Date().toISOString()),
@@ -123,7 +124,7 @@ function parseChatResponse(input: JsonRecord, fallbackUserContent: string): Send
     sessionId: extractSessionId(input),
     clientId: extractClientId(input),
     userMessage: normalizeMessage(userMessageSource, {
-      id: crypto.randomUUID(),
+      id: generateId(),
       role: 'user',
       content: transcription || fallbackUserContent,
       createdAt: new Date().toISOString(),
@@ -131,7 +132,7 @@ function parseChatResponse(input: JsonRecord, fallbackUserContent: string): Send
       status: 'sent'
     }),
     assistantMessage: normalizeMessage(assistantMessageSource, {
-      id: crypto.randomUUID(),
+      id: generateId(),
       role: 'assistant',
       content: '',
       createdAt: new Date().toISOString(),

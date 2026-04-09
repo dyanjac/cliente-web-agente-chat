@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiClient } from '../lib/api/client';
 import { appConfig } from '../lib/config';
+import { generateId } from '../lib/id';
 import { loadChatState, saveChatState } from '../lib/storage/chatStore';
 import type { ChatMessage, ChatSession, ModelOption } from '../types/chat';
 
@@ -18,7 +19,7 @@ const pendingAssistantMessage = (sessionId: string): ChatMessage => ({
 function createLocalSession(seed?: string): ChatSession {
   const now = new Date().toISOString();
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     title: seed?.trim().slice(0, 32) || 'New customer chat',
     backendSessionId: null,
     clientId: null,
@@ -255,7 +256,7 @@ export function useChatApp() {
     setPending(sessionId, true);
 
     const optimisticUserMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       role: 'user',
       content: trimmed,
       createdAt: new Date().toISOString(),
